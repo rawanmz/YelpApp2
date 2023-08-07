@@ -18,6 +18,6 @@ interface DayPlanDao {
     @Update
     suspend fun updateData(plan: DayPlan)
 
-    @Query("SELECT * FROM dayplan_table WHERE yelpId  = :valudId ")
-    suspend fun searchPlanById(valudId: String): DayPlan
+    @Query("SELECT * FROM dayplan_table WHERE yelpId  = :valuedId ")
+    suspend fun searchPlanById(valuedId: String): DayPlan
 }

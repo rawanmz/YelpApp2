@@ -24,7 +24,9 @@ import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
 import java.util.*
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class MapsFragment : Fragment() {
 
     private lateinit var mMap: GoogleMap
@@ -64,31 +66,30 @@ class MapsFragment : Fragment() {
                 ) == PackageManager.PERMISSION_GRANTED
         ) {
             fusedLocationProviderClient.lastLocation.addOnCompleteListener { place ->
-                var location = place.result
+                val location = place.result
                 if (location != null) {
-                    var geocoder = Geocoder(context, Locale.getDefault())
-                    var address = geocoder.getFromLocation(
+                    val geocoder = Geocoder(requireContext(), Locale.getDefault())
+                    val address = geocoder.getFromLocation(
                             location.latitude, location.longitude, 1
                     )
-                    lat = address[0].latitude
-                    lon = address[0].longitude
+                    lat = address?.get(0)?.latitude ?: 0.0
+                    lon = address?.get(0)?.longitude?:0.0
                 }
-                var currentLocation = LatLng(lat, lon)
+                val currentLocation = LatLng(lat, lon)
                 mMap.addMarker(MarkerOptions().position(currentLocation))
                 mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(currentLocation, 15F))
                 search = view.findViewById(R.id.search_lcation) as SearchView
                 search.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
 
-                    override fun onQueryTextSubmit(p0: String?): Boolean {
-                        var location = search.query.toString()
-                        var list = emptyList<Address>()
+                    override fun onQueryTextSubmit(string: String?): Boolean {
+                        val location = search.query.toString()
+                        var list = mutableListOf<Address>()
                         if (location != null || location != " ") {
                             try {
-                                var geocoder = Geocoder(context)
+                                val geocoder = Geocoder(requireContext())
 
-                                list = geocoder.getFromLocationName(location, 1)
+                                list = geocoder.getFromLocationName(location, 1) as MutableList<Address>
                             } catch (e: Exception) {
-
                                 e.printStackTrace()
                             }
                             val adress: Address = list.get(0)
@@ -99,7 +100,7 @@ class MapsFragment : Fragment() {
                         return false
                     }
 
-                    override fun onQueryTextChange(p0: String?): Boolean {
+                    override fun onQueryTextChange(string: String?): Boolean {
                         return false
                     }
                 })

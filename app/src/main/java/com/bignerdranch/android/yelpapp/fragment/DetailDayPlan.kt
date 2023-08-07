@@ -12,35 +12,39 @@ import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import com.bignerdranch.android.yelpapp.R
 import com.bignerdranch.android.yelpapp.database.DayPlan
+import com.bignerdranch.android.yelpapp.databinding.FragmentDetailDayPlanBinding
 import com.bignerdranch.android.yelpapp.viewmodel.MyViewModel
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.bitmap.CenterCrop
 import com.bumptech.glide.load.resource.bitmap.RoundedCorners
 import com.bumptech.glide.request.RequestOptions
-import kotlinx.android.synthetic.main.fragment_detail_day_plan.*
+import dagger.hilt.android.AndroidEntryPoint
 
-
+@AndroidEntryPoint
 class DetailDayPlan : Fragment() {
 
     private lateinit var myViewModel: MyViewModel
     private val args by navArgs<DetailDayPlanArgs>()
     private lateinit var dayPlan: DayPlan
+    var binding: FragmentDetailDayPlanBinding? = null
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        val view = inflater.inflate(R.layout.fragment_detail_day_plan, container, false)
+
+        binding = FragmentDetailDayPlanBinding.inflate(inflater, container, false);
         myViewModel = ViewModelProvider(this).get(MyViewModel::class.java)
         bindData()
-        return view
+        return binding?.root
     }
 
-    fun bindData() {
+    private fun bindData() {
         myViewModel.searchDayPlan(args.id).observe(viewLifecycleOwner,
             Observer {
                 if (it != null) {
-                    descriptionedittext.setText(it.listDescription)
-                    it.listDescription = descriptionedittext.text.toString()
+                    binding?.descriptionedittext?.setText(it.listDescription)
+                    it.listDescription = binding?.descriptionedittext?.text.toString()
                     dayPlan = DayPlan(
                         it.yelpId,
                         it.name,
@@ -54,22 +58,24 @@ class DetailDayPlan : Fragment() {
                         it.coordinates,
                         it.listDescription
                     )
-                    nametextview.text = it.name
-                    Glide.with(resturantimageView)
-                        .load(it.imageUrl).apply(
-                            RequestOptions().transforms(
-                                CenterCrop(), RoundedCorners(20)
-                            )
-                        ).into(resturantimageView)
+                    binding?.nametextview?.text = it.name
+                    binding?.resturantimageView?.let { it1 ->
+                        Glide.with(it1)
+                            .load(it.imageUrl).apply(
+                                RequestOptions().transforms(
+                                    CenterCrop(), RoundedCorners(20)
+                                )
+                            ).into(binding?.resturantimageView!!)
+                    }
 
-                    savebutton.setOnClickListener {
-                        dayPlan.listDescription = descriptionedittext.text.toString()
+                    binding?.savebutton?.setOnClickListener {
+                        dayPlan.listDescription = binding?.descriptionedittext?.text.toString()
                         Toast.makeText(context, R.string.saved_msg, Toast.LENGTH_LONG).show()
                         myViewModel.updateDayPlan(dayPlan)
                         val action = DetailDayPlanDirections.actionDetailDayPlanToDayPlanList()
                         findNavController().navigate(action)
                     }
-                    Detail.setOnClickListener {
+                    binding?.Detail?.setOnClickListener {
                         val action=DetailDayPlanDirections.actionDetailDayPlanToWeatherFragment(args.id)
                         findNavController().navigate(action)
                     }

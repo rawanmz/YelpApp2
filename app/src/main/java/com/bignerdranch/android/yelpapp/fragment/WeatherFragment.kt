@@ -10,9 +10,12 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
+import androidx.hilt.navigation.fragment.hiltNavGraphViewModels
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.findNavController
@@ -22,45 +25,42 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bignerdranch.android.yelpapp.BuildConfig
 import com.bignerdranch.android.yelpapp.R
-import com.bignerdranch.android.yelpapp.ServiceLocator
 import com.bignerdranch.android.yelpapp.data.Hour
 import com.bignerdranch.android.yelpapp.database.DayPlan
-import com.bignerdranch.android.yelpapp.viewmodel.MyViewModelFactory
+import com.bignerdranch.android.yelpapp.databinding.ActivitySplashScreenBinding
+import com.bignerdranch.android.yelpapp.databinding.FragmentWeatherBinding
 import com.bignerdranch.android.yelpapp.viewmodel.MyViewModel
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.bitmap.CenterCrop
 import com.bumptech.glide.load.resource.bitmap.RoundedCorners
 import com.bumptech.glide.request.RequestOptions
-import kotlinx.android.synthetic.main.fragment_weather.*
-import kotlinx.android.synthetic.main.hour_item.view.*
+import dagger.hilt.android.AndroidEntryPoint
 
-
+@AndroidEntryPoint
 class WeatherFragment : Fragment() {
+    var binding: FragmentWeatherBinding? = null
 
-    private lateinit var myViewModel: MyViewModel
-    private lateinit var restaurantViewModelFactory: MyViewModelFactory
+//    private lateinit var myViewModelFactory: MyViewModelFactory
     private val args by navArgs<WeatherFragmentArgs>()
     private lateinit var adapter: HourAdapter
     private lateinit var dayPlan: DayPlan
+    val sharedViewModel by hiltNavGraphViewModels<MyViewModel>(R.id.my_nav)
 
     @SuppressLint("SetTextI18n")
     override fun onCreateView(
             inflater: LayoutInflater, container: ViewGroup?,
             savedInstanceState: Bundle?
     ): View? {
-        val view = inflater.inflate(R.layout.fragment_weather, container, false)
-        restaurantViewModelFactory =
-                MyViewModelFactory(ServiceLocator.yelpResponse, ServiceLocator.weatherResponse)
-        myViewModel =
-                ViewModelProvider(this, restaurantViewModelFactory).get(MyViewModel::class.java)
-        val recyclerView = view.findViewById<RecyclerView>(R.id.constraintLayout2)
+        val view = binding?.root
+            //inflater.inflate(R.layout.fragment_weather, container, false)
+        val recyclerView = view?.findViewById<RecyclerView>(R.id.constraintLayout2)
         adapter = HourAdapter()
-        val myLayutManager = LinearLayoutManager(context)
-        myLayutManager.orientation = LinearLayoutManager.HORIZONTAL
-        recyclerView.layoutManager = myLayutManager
-        recyclerView.itemAnimator = DefaultItemAnimator()
-        recyclerView.adapter = adapter
-        val v = myViewModel.searchRestaurantById(args.id).observe(viewLifecycleOwner,
+        val myLayoutManager = LinearLayoutManager(context)
+        myLayoutManager.orientation = LinearLayoutManager.HORIZONTAL
+        recyclerView?.layoutManager = myLayoutManager
+        recyclerView?.itemAnimator = DefaultItemAnimator()
+        recyclerView?.adapter = adapter
+        val value = sharedViewModel.searchRestaurantById(args.id).observe(viewLifecycleOwner,
                 Observer {
                     if (it != null) {
                         dayPlan = DayPlan(
@@ -68,31 +68,33 @@ class WeatherFragment : Fragment() {
                                 it.is_closed, it.numReviews, it.distanceInMeters, it.imageUrl,
                                 it.categories, it.coordinates, it.listDescription
                         )
-                        placeName.text = it.name
-                        phone.text = getString(R.string.phone) + it.phone
-                        rate.rating = it.rating.toFloat()
-                        reviews.text = it.numReviews.toString() + getString(R.string.reviews)
-                        category.text = it.categories[0].title
-                        Place_distance.text = it.displayDistance()
+                        binding?.placeName?.text = it.name
+                        binding?.phone?.text = getString(R.string.phone) + it.phone
+                        binding?.rate?.rating = it.rating.toFloat()
+                        binding?.reviews?.text = it.numReviews.toString() + getString(R.string.reviews)
+                        binding?.category?.text = it.categories[0].title
+                        binding?.PlaceDistance?.text = it.displayDistance()
                         if (it.is_closed == true) {
-                            is_close.text = getString(R.string.closed)
-                            is_close.setTextColor(Color.RED)
+                            binding?.isClose?.text = getString(R.string.closed)
+                            binding?.isClose?.setTextColor(Color.RED)
                         } else {
-                            is_close.text = getString(R.string.open)
-                            is_close.setTextColor(Color.parseColor("#9AD9DC"))
+                            binding?.isClose?.text = getString(R.string.open)
+                            binding?.isClose?.setTextColor(Color.parseColor("#9AD9DC"))
                         }
-                        Glide.with(placeImg)
+                        binding?.placeImg?.let { it1 ->
+                            Glide.with(it1)
                                 .load(it.imageUrl).apply(
-                                        RequestOptions().transforms(
-                                                CenterCrop(), RoundedCorners(20)
-                                        )
-                                ).into(placeImg)
-                        phoneCallImg.setOnClickListener {
+                                    RequestOptions().transforms(
+                                        CenterCrop(), RoundedCorners(20)
+                                    )
+                                ).into(binding?.placeImg!!)
+                        }
+                        binding?.phoneCallImg?.setOnClickListener {
                             val intent = Intent(Intent.ACTION_CALL, Uri.parse("tel:" + dayPlan.phone))
                             startActivity(intent)
                         }
-                        addImage.setOnClickListener { view ->
-                            myViewModel.addDayPlan(dayPlan)
+                        binding?.addImage?.setOnClickListener { view ->
+                            sharedViewModel.addDayPlan(dayPlan)
                             val action =
                                     WeatherFragmentDirections.actionWeatherFragmentToDayPlanList()
                             findNavController().navigate(action)
@@ -102,58 +104,64 @@ class WeatherFragment : Fragment() {
                             context?.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
                     val activeNetworkInfo = connectivityManager.activeNetworkInfo
                     if (activeNetworkInfo != null && activeNetworkInfo.isConnected) {
-                        myViewModel.searchForecastWeather(
+                        sharedViewModel.searchForecastWeather(
                                 BuildConfig.WEATHER_API_KEY,
                                 "${it.coordinates.latitude},${it.coordinates.longitude}",
                                 "3"
                         ).observe(viewLifecycleOwner, Observer {
                             adapter.setData(it.forecast.forecastday[0].hour)
-                            day1.text = it.forecast.forecastday[0].date
-                            Glide.with(day_icon1)
+                            binding?.day1?.text = it.forecast.forecastday[0].date
+                            binding?.dayIcon1?.let { it1 ->
+                                Glide.with(it1)
                                     .load("https://${it.forecast.forecastday[0].day.condition.icon}")
                                     .apply(
-                                            RequestOptions().transforms(
-                                                    CenterCrop(), RoundedCorners(20)
-                                            )
-                                    ).into(day_icon1)
-                            daytemp1.text =
+                                        RequestOptions().transforms(
+                                            CenterCrop(), RoundedCorners(20)
+                                        )
+                                    ).into(binding?.dayIcon1!!)
+                            }
+                            binding?.daytemp1?.text =
                                     it.forecast.forecastday[0].day.avgtemp_c.toString() + getString(R.string.temp_) +
                                             it.forecast.forecastday[0].day.avgtemp_f.toString() + getString(
                                             R.string.f
                                     )
-                            dayweatherdescription1.text =
+                            binding?.dayweatherdescription1?.text =
                                     getString(R.string.chance_of_rain) + it.forecast.forecastday[0]
                                             .day.daily_chance_of_rain + getString(R.string.percentage)
 
-                            day2.text = it.forecast.forecastday[1].date
-                            Glide.with(day_icon2)
+                            binding?.day2?.text = it.forecast.forecastday[1].date
+                            binding?.dayIcon2?.let { it1 ->
+                                Glide.with(it1)
                                     .load("https://${it.forecast.forecastday[1].day.condition.icon}")
                                     .apply(
-                                            RequestOptions().transforms(
-                                                    CenterCrop(), RoundedCorners(20)
-                                            )
-                                    ).into(day_icon2)
-                            daytemp2.text =
+                                        RequestOptions().transforms(
+                                            CenterCrop(), RoundedCorners(20)
+                                        )
+                                    ).into(binding?.dayIcon2!!)
+                            }
+                            binding?.daytemp2?.text =
                                     it.forecast.forecastday[1].day.avgtemp_c.toString() + getString(R.string.temp_) +
                                             it.forecast.forecastday[1].day.avgtemp_f.toString() +
                                             getString(R.string.f)
-                            dayweatherdescription2.text =
+                            binding?.dayweatherdescription2?.text =
                                     getString(R.string.chance_of_rain) + it.forecast.forecastday[1].day.daily_chance_of_rain +
                                             getString(R.string.percentage)
 
-                            day3.text = it.forecast.forecastday[2].date
-                            Glide.with(day_icon3)
+                            binding?.day3?.text = it.forecast.forecastday[2].date
+                            binding?.dayIcon3?.let { it1 ->
+                                Glide.with(it1)
                                     .load("https://${it.forecast.forecastday[2].day.condition.icon}")
                                     .apply(
-                                            RequestOptions().transforms(
-                                                    CenterCrop(), RoundedCorners(20)
-                                            )
-                                    ).into(day_icon3)
-                            daytemp3.text =
+                                        RequestOptions().transforms(
+                                            CenterCrop(), RoundedCorners(20)
+                                        )
+                                    ).into(binding?.dayIcon3!!)
+                            }
+                            binding?.daytemp3?.text =
                                     it.forecast.forecastday[2].day.avgtemp_c.toString() + getString(R.string.temp_) +
                                             it.forecast.forecastday[2].day.avgtemp_f.toString() +
                                             getString(R.string.f)
-                            dayweatherdescription3.text =
+                            binding?.dayweatherdescription3?.text =
                                     getString(R.string.chance_of_rain) + it.forecast.forecastday[2].day.daily_chance_of_rain +
                                             getString(R.string.percentage)
                         })
@@ -176,25 +184,30 @@ class WeatherFragment : Fragment() {
     private inner class HourAdapter : RecyclerView.Adapter<HourHolder>() {
         var hours = emptyList<Hour>()
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): HourHolder {
-            val view =
-                    LayoutInflater.from(parent.context).inflate(R.layout.hour_item, parent, false)
+            val view = LayoutInflater.from(parent.context)
+                    .inflate(R.layout.hour_item, parent, false)
             return HourHolder(view)
         }
 
         override fun getItemCount(): Int = hours.size
-
+        @SuppressLint("SetTextI18n")
         override fun onBindViewHolder(holder: HourHolder, position: Int) {
             val hour = hours[position]
-            holder.itemView.hour1.text = hour.time.split(" ")[1]
-            holder.itemView.temp1.text = hour.temp_c.toString() + getString(R.string.temp)
-            holder.itemView.weatherdescription1.text = hour.condition.text
-            Glide.with(holder.itemView.icon1)
+            val hour1=holder.itemView.findViewById<TextView>(R.id.hour1)
+            val temp1=holder.itemView.findViewById<TextView>(R.id.temp1)
+            val weatherdescription1=holder.itemView.findViewById<TextView>(R.id.weatherdescription1)
+            val icon1=holder.itemView.findViewById<ImageView>(R.id.icon1)
+
+            hour1.text = hour.time.split(" ")[1]
+            temp1.text = hour.temp_c.toString() + getString(R.string.temp)
+            weatherdescription1.text = hour.condition.text
+            Glide.with(icon1)
                     .load("https://${hour.condition.icon}")
                     .apply(
                             RequestOptions().transforms(
                                     CenterCrop(), RoundedCorners(20)
                             )
-                    ).into(holder.itemView.icon1)
+                    ).into(icon1)
         }
 
         fun setData(hours: List<Hour>) {

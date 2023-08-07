@@ -2,7 +2,7 @@ package com.bignerdranch.android.yelpapp.repository
 
 import com.bignerdranch.android.yelpapp.data.*
 
-class FakeWeatherRepo : WeatherRepoInterface {
+class FakeWeatherRepo : WeatherDataSource {
     val weather: Weather = Weather(
         Forecast(
             forecastday = listOf(

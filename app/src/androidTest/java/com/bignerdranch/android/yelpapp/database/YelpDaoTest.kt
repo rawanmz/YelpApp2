@@ -61,11 +61,11 @@ class YelpDaoTest{
     }
     @Test
     fun searchPlace()= runBlockingTest {
-        val Place= YelpRestaurant("id","name",4.5,
+        var Place= YelpRestaurant("id","name",4.5,
             "123344455",false,22,4.3,"url",
             listOf(YelpCategory("title")), Coordinates(0.0,0.0))
         dao.addData(Place)
-        dao.searchResturantById(Place.yelpId)
+        Place=dao.searchResturantById(Place.yelpId)
         val allData=dao.readAllData().getOrAwaitValue()
         assertThat(allData).contains(Place)
     }

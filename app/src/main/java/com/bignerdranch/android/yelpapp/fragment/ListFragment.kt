@@ -16,6 +16,8 @@ import android.widget.Spinner
 import androidx.appcompat.widget.SearchView
 import androidx.databinding.DataBindingUtil
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
+import androidx.hilt.navigation.fragment.hiltNavGraphViewModels
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.findNavController
@@ -24,29 +26,29 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bignerdranch.android.yelpapp.BuildConfig
 import com.bignerdranch.android.yelpapp.R
-import com.bignerdranch.android.yelpapp.ServiceLocator
 import com.bignerdranch.android.yelpapp.data.YelpRestaurant
 import com.bignerdranch.android.yelpapp.databinding.FragmentListBinding
 import com.bignerdranch.android.yelpapp.databinding.ListItemBinding
 import com.bignerdranch.android.yelpapp.search.SearchAdapter
 import com.bignerdranch.android.yelpapp.search.SuggestionProvider
 import com.bignerdranch.android.yelpapp.sharedpreferences.SharedPreferencesCoordinates
-import com.bignerdranch.android.yelpapp.viewmodel.MyViewModelFactory
 import com.bignerdranch.android.yelpapp.viewmodel.MyViewModel
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.bitmap.CenterCrop
 import com.bumptech.glide.load.resource.bitmap.RoundedCorners
 import com.bumptech.glide.request.RequestOptions
-import kotlinx.android.synthetic.main.list_item.view.*
 import java.util.*
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class ListFragment : Fragment() {
     val args by navArgs<ListFragmentArgs>()
-    private lateinit var viewModell: MyViewModel
-    private lateinit var restaurantViewModelFactory: MyViewModelFactory
+    val sharedViewModel by hiltNavGraphViewModels<MyViewModel>(R.id.my_nav)
+
+    //    private lateinit var restaurantViewModelFactory: MyViewModelFactory
     lateinit var sharedPreferencesCoordinates: SharedPreferencesCoordinates
     private var adapter = RestaurantAdapter(emptyList())
-    private var mSuggestionAdapter: SearchAdapter? = null
+    var suggestionAdapter: SearchAdapter? = null
     private lateinit var searchView: SearchView
     lateinit var sortSpinner: Spinner
     private var queryTextListener: SearchView.OnQueryTextListener? = null
@@ -63,12 +65,7 @@ class ListFragment : Fragment() {
     ): View? {
         val binding: FragmentListBinding = DataBindingUtil
                 .inflate(inflater, R.layout.fragment_list, container, false)
-        restaurantViewModelFactory = MyViewModelFactory(
-                ServiceLocator.yelpResponse,
-                ServiceLocator.weatherResponse
-        )
-        viewModell =
-                ViewModelProvider(this, restaurantViewModelFactory).get(MyViewModel::class.java)
+
         sortSpinner = binding.spinner
         val connectivityManager =
                 context?.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
@@ -76,11 +73,8 @@ class ListFragment : Fragment() {
         if (activeNetworkInfo != null && activeNetworkInfo.isConnected) {
             sharedPreferencesCoordinates = SharedPreferencesCoordinates(requireContext())
             val location = sharedPreferencesCoordinates.getCoordinate("latlang")
-            viewModell.searchRestaurant(
-                    "Bearer ${BuildConfig.API_KEY}", args.search,
-                    location.latitude.toString(), location.longitude.toString()
-            ).observe(viewLifecycleOwner,
-                    Observer {
+            sharedViewModel.searchRestaurant("Bearer ${BuildConfig.YELP_API_KEY}",
+                args.search, location.latitude.toString(), location.longitude.toString()).observe(viewLifecycleOwner, Observer {
                         if (it.isNotEmpty()) {
                             adapter.setData(it)
                         } else {
@@ -92,7 +86,7 @@ class ListFragment : Fragment() {
                         }
                     })
         } else {
-            viewModell.readAll.observe(viewLifecycleOwner, Observer { Places ->
+            sharedViewModel.readAll.observe(viewLifecycleOwner, Observer { Places ->
                 adapter.setData(Places)
             })
         }
@@ -120,19 +114,19 @@ class ListFragment : Fragment() {
         val searchManager =
                 requireActivity().getSystemService(Context.SEARCH_SERVICE) as SearchManager
 
-        mSuggestionAdapter = SearchAdapter(requireActivity(), null, 0)
+        suggestionAdapter = SearchAdapter(requireActivity(), null, 0)
         if (searchItem != null) {
             searchView = searchItem.actionView as SearchView
         }
         if (searchView != null) {
             searchView.setSearchableInfo(searchManager.getSearchableInfo(requireActivity().componentName))
-            searchView.suggestionsAdapter = mSuggestionAdapter
+            searchView.suggestionsAdapter = suggestionAdapter
 
             queryTextListener = object : SearchView.OnQueryTextListener {
                 override fun onQueryTextChange(newText: String): Boolean {
                     val cursor = getRecentSuggestions(newText)
                     if (cursor != null) {
-                        mSuggestionAdapter?.swapCursor(cursor)
+                        suggestionAdapter?.swapCursor(cursor)
                     }
                     return false
                 }
@@ -145,8 +139,8 @@ class ListFragment : Fragment() {
                     suggestions.saveRecentQuery(queryText, null)
                     sharedPreferencesCoordinates = SharedPreferencesCoordinates(requireContext())
                     val location = sharedPreferencesCoordinates.getCoordinate("latlang")
-                    viewModell.searchRestaurant(
-                            "Bearer ${BuildConfig.API_KEY}",
+                    sharedViewModel.searchRestaurant(
+                            "Bearer ${BuildConfig.YELP_API_KEY}",
                             queryText,
                             location.latitude.toString(),
                             location.longitude.toString()
@@ -163,8 +157,7 @@ class ListFragment : Fragment() {
                 }
 
                 override fun onSuggestionClick(position: Int): Boolean {
-
-                    searchView.setQuery(mSuggestionAdapter?.getSuggestionText(position), true)
+                    searchView.setQuery(suggestionAdapter?.getSuggestionText(position), true)
                     return true
                 }
             })
@@ -183,7 +176,6 @@ class ListFragment : Fragment() {
 
         val selection = " ?"
         val selArgs = arrayOf(query)
-
         val uri = uriBuilder.build()
         return activity?.contentResolver?.query(uri, null, selection, selArgs, null)
     }
@@ -204,8 +196,7 @@ class ListFragment : Fragment() {
                     ).into(binding.placeImg)
         }
     }
-
-    private inner class RestaurantAdapter(private var restaurant: List<YelpRestaurant>) :
+    private inner class RestaurantAdapter (private var restaurant: List<YelpRestaurant>) :
             RecyclerView.Adapter<RestaurantHolder>(), AdapterView.OnItemSelectedListener {
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RestaurantHolder {
             val binding: ListItemBinding = DataBindingUtil
@@ -217,7 +208,7 @@ class ListFragment : Fragment() {
         override fun onBindViewHolder(holder: RestaurantHolder, position: Int) {
             val restaurants = restaurant[position]
             holder.bind(restaurants)
-            holder.itemView.list_item.setOnClickListener {
+            holder.itemView.rootView.setOnClickListener {
                 val action =
                         ListFragmentDirections.actionListFragmentToWeatherFragment(restaurants.yelpId)
                 findNavController().navigate(action)
@@ -246,7 +237,7 @@ class ListFragment : Fragment() {
             } else if (position == 2) {
                 distanceSort()
             }
-            viewModell.readAll.observe(viewLifecycleOwner, {
+            sharedViewModel.readAll.observe(viewLifecycleOwner, {
                 adapter.setData(it)
             })
         }

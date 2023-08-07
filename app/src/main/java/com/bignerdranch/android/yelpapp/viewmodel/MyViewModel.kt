@@ -4,18 +4,21 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.bignerdranch.android.yelpapp.ServiceLocator
 import com.bignerdranch.android.yelpapp.data.Weather
 import com.bignerdranch.android.yelpapp.data.YelpRestaurant
 import com.bignerdranch.android.yelpapp.database.DayPlan
-import com.bignerdranch.android.yelpapp.repository.WeatherRepoInterface
-import com.bignerdranch.android.yelpapp.repository.YelpRepoInterface
+import com.bignerdranch.android.yelpapp.repository.WeatherRepo
+import com.bignerdranch.android.yelpapp.repository.YelpRepo
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class MyViewModel(
-        var yelpRepo: YelpRepoInterface = ServiceLocator.yelpResponse,
-        var weatherRepo: WeatherRepoInterface = ServiceLocator.weatherResponse
+@HiltViewModel
+class MyViewModel @Inject constructor(
+        var yelpRepo: YelpRepo,
+        var weatherRepo:WeatherRepo
 ) : ViewModel() {
+
     var weather = MutableLiveData<Weather>()
     val readAll: LiveData<List<YelpRestaurant>> = yelpRepo.readAllData
     val restaurantsList = MutableLiveData<List<YelpRestaurant>>()
@@ -26,7 +29,8 @@ class MyViewModel(
     fun searchRestaurant(auth: String, search: String, lat: String, lon: String)
             : LiveData<List<YelpRestaurant>> {
         viewModelScope.launch {
-            restaurantsList.value = yelpRepo.searchRestaurants(auth, search, lat, lon)
+            val result= yelpRepo.searchRestaurants(auth, search, lat, lon)
+            restaurantsList.postValue(result.getOrNull()?.restaurants)
         }
         return restaurantsList
     }

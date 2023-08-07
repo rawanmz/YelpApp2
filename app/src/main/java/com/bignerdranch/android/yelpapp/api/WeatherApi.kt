@@ -7,7 +7,7 @@ import retrofit2.http.Query
 interface WeatherApi {
 
     @GET("forecast.json")
-    suspend fun searchForcastWeather(
+    suspend fun searchForecastWeather(
         @Query("key") authHeader: String,
         @Query("q") q: String,
         @Query("days") days: String

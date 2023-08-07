@@ -6,7 +6,8 @@ import com.google.gson.annotations.SerializedName
 
 @Entity(tableName = "restaurant_table")
 data class YelpRestaurant(
-    @PrimaryKey() @SerializedName("id") val yelpId: String,
+    @PrimaryKey()
+    @SerializedName("id") val yelpId: String,
     val name: String,
     val rating: Double,
     val phone: String,
